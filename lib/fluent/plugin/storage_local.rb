@@ -56,15 +56,12 @@ module Fluent
         elsif @path
           # ok
         else # @_plugin_id_configured is true
-          log.warn "path for <storage> is not specified. Using on-memory store temporarily, but will use file store after support global storage path"
-          @on_memory = true
-          ## TODO: get process-wide directory for plugin storage, and generate path for this plugin storage instance
-          # path = 
+          @path = File.join(owner.plugin_root_dir, 'storage.json')
         end
 
         if !@on_memory
           dir = File.dirname(@path)
-          FileUtils.mkdir_p(dir, mode: @dir_mode) unless File.exist?(dir)
+          FileUtils.mkdir_p(dir, mode: @dir_mode) unless Dir.exist?(dir)
           if File.exist?(@path)
             raise Fluent::ConfigError, "Plugin storage path '#{@path}' is not readable/writable" unless File.readable?(@path) && File.writable?(@path)
             begin
@@ -75,7 +72,7 @@ module Fluent
               raise Fluent::ConfigError, "Unexpected error: failed to read data from plugin storage file: '#{@path}'"
             end
           else
-            raise Fluent::ConfigError, "Directory is not writable for plugin storage file '#{dir}'" unless File.writable?(dir)
+            raise Fluent::ConfigError, "Directory is not writable for plugin storage file '#{@path}'" unless File.writable?(dir)
           end
         end
       end
@@ -87,7 +84,7 @@ module Fluent
           json_string = open(@path, 'r:utf-8'){ |io| io.read }
           json = Yajl::Parser.parse(json_string)
           unless json.is_a?(Hash)
-            log.error "broken content for plugin storage (Hash required: ignored)", type: json.class
+            log.error "broken content for plugin storage (Hash required, ignored)", type: json.class
             log.debug "broken content", content: json_string
             return
           end
